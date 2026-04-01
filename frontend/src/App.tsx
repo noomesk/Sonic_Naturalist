@@ -13,10 +13,39 @@ function App() {
     { id: '2', startTime: 4.1, endTime: 5.2, frequency: [4000, 6000] as [number, number], label: 'H. cinerea', confidence: 0.88 }
   ];
 
+  // ¡Esta es la función que querías agregar, ahora correctamente dentro del componente!
   const handleUpload = async (files: File[]) => {
-    console.log('Files to upload:', files);
-    // Aquí integraremos la llamada a FastAPI en el próximo paso
-    setIsUploadModalOpen(false);
+    if (files.length === 0) return;
+
+    // Seleccionamos el primer archivo (para esta prueba)
+    const fileToUpload = files[0];
+    console.log(`Subiendo: ${fileToUpload.name}...`);
+
+    // Preparamos el FormData (FastAPI espera que el campo se llame exactamente 'file')
+    const formData = new FormData();
+    formData.append('file', fileToUpload);
+
+    try {
+      // Hacemos la petición a la ruta que creamos en FastAPI
+      const response = await fetch('http://localhost:8000/api/v1/audio/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ ¡Éxito del Backend!', data);
+        alert(`¡Archivo subido! El servidor le asignó el ID:\n${data.audioId}`);
+        setIsUploadModalOpen(false);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Error del servidor:', errorData);
+        alert(`Error: ${errorData.detail || 'No se pudo subir el archivo'}`);
+      }
+    } catch (error) {
+      console.error('❌ Error de red:', error);
+      alert('Error de conexión. ¿Está el backend encendido?');
+    }
   };
 
   return (
