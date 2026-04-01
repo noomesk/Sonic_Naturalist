@@ -11,7 +11,7 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Variables de Entorno y Secretos (CRITICO PARA LA SEGURIDAD)
+# Variables de Entorno y Secretos (CRITICO PARA LA SEGURIDAD) imp
 .env
 .env.*
 !.env.example
