@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { SpectrogramViewer } from './components/SpectrogramViewer';
+import { InsightsGrid } from './components/InsightsGrid';
 import { UploadModal } from './components/UploadModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
-
+import { FieldJournal } from './components/FieldJournal'; // <-- NUEVO
+import { Recordings } from './components/Recordings';     // <-- NUEVO
 function App() {
   const [activeSection, setActiveSection] = useState('spectrogram');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -35,6 +37,24 @@ function App() {
       console.error('Error de red:', error);
     }
   };
+  // Función para renderizar el contenido central basado en el menú
+  const renderMainContent = () => {
+    switch (activeSection) {
+      case 'field-journal':
+        return <FieldJournal />;
+      case 'recordings':
+        return <Recordings />;
+      case 'spectrogram':
+      case 'ai-detection': // Para MVP, si clickean AI detection, mostramos el espectro porque la IA está en la barra lateral
+      default:
+        return (
+          <>
+            <SpectrogramViewer currentAudioId={currentAudioId} />
+            <InsightsGrid />
+          </>
+        );
+    }
+  };
 
   return (
     <ErrorBoundary>
@@ -48,69 +68,29 @@ function App() {
           onUploadClick={() => setIsUploadModalOpen(true)}
         />
 
-        {/* 2. Columna Central: Main Canvas */}
-        <main className="ml-72 mr-80 pt-8 pb-12 px-8 min-h-screen w-full relative z-10">
+        {/* 2. Main Canvas (Centro) */}
+        <main className="ml-[280px] mr-[320px] pt-8 pb-12 px-8 min-h-screen w-full relative z-10">
+          {/* Top Action Bar */}
           <header className="flex justify-between items-end mb-8">
             <div>
               <p className="font-label text-xs uppercase tracking-widest text-secondary mb-1">Session ID: #29402-B</p>
-              <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tight">Spectrogram Analysis</h2>
+              <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tight">
+                {activeSection === 'field-journal' ? 'Field Journal' : 
+                 activeSection === 'recordings' ? 'Audio Library' : 
+                 'Spectrogram Analysis'}
+              </h2>
             </div>
             <div className="flex gap-3">
               <button className="px-6 py-2 bg-surface-container-high text-primary font-headline font-bold text-sm rounded-full flex items-center gap-2 hover:bg-surface-variant transition-colors">
                 <span className="material-symbols-outlined text-lg">file_download</span>
                 Export Data
               </button>
-              <button className="px-8 py-2 bg-primary-container text-on-primary-container font-headline font-bold text-sm rounded-full flex items-center gap-2 hover:opacity-90 transition-opacity">
-                <span className="material-symbols-outlined text-lg">play_circle</span>
-                Process Stream
-              </button>
             </div>
           </header>
 
-          {activeSection === 'spectrogram' && (
-            <>
-              <SpectrogramViewer currentAudioId={currentAudioId} />
+          {/* Contenido Dinámico */}
+          {renderMainContent()}
 
-              {/* Insights Grid */}
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-surface-container-high rounded-xl p-6">
-                  <h4 className="font-headline font-bold text-primary mb-4 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg">analytics</span>
-                    Model Statistics
-                  </h4>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-xs font-label text-on-surface-variant font-medium">ANALYSIS PROGRESS</span>
-                        <span className="text-xs font-label text-primary font-bold">84%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
-                        <div className="h-full bg-primary w-[84%]"></div>
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-xs font-label text-on-surface-variant font-medium">SNR RATIO</span>
-                        <span className="text-xs font-label text-primary font-bold">12.4 dB</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden">
-                        <div className="h-full bg-secondary w-[65%]"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-primary text-white rounded-xl p-6 relative overflow-hidden">
-                  <div className="relative z-10">
-                    <h4 className="font-headline font-bold mb-1 opacity-80">Research Note</h4>
-                    <p className="text-sm font-body leading-relaxed mb-4">High frequency components detected between 2s and 4s suggest multiple individuals calling in sequence.</p>
-                    <button className="text-xs font-label font-bold py-2 px-4 bg-white/10 rounded-full hover:bg-white/20 transition-colors">ADD ANNOTATION</button>
-                  </div>
-                  <span className="material-symbols-outlined absolute -bottom-4 -right-4 text-9xl opacity-5">sticky_note_2</span>
-                </div>
-              </div>
-            </>
-          )}
         </main>
 
         {/* 3. Columna Derecha: AI Sidebar */}
@@ -145,39 +125,42 @@ function App() {
             </div>
           </div>
 
-          {/* Detected Events List */}
-          <h5 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Detected Events</h5>
+          {/* Detected Events List with Human Validation */}
+          <h5 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Detection Validation</h5>
           <div className="space-y-3">
-            <div className="p-3 bg-surface-container rounded-xl flex items-center justify-between group hover:bg-surface-container-high cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-sm">schedule</span>
-                <div>
-                  <p className="text-sm font-label font-bold text-primary">00:02:14</p>
-                  <p className="text-[10px] text-on-surface-variant">Vocalization Pattern A</p>
+            {[
+              { id: 1, time: '00:02:14', desc: 'L. catesbeianus (94%)', status: 'pending' },
+              { id: 2, time: '00:02:45', desc: 'H. cinerea (88%)', status: 'verified' },
+              { id: 3, time: '00:03:12', desc: 'Unknown Pulse', status: 'rejected' }
+            ].map((event) => (
+              <div key={event.id} className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
+                event.status === 'verified' ? 'bg-[#c8ead8]/30 border-[#c8ead8]' : 
+                event.status === 'rejected' ? 'bg-[#ffdad6]/30 border-[#ffdad6]' : 
+                'bg-surface-container border-transparent hover:bg-surface-container-high'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-secondary text-sm">
+                    {event.status === 'verified' ? 'check_circle' : event.status === 'rejected' ? 'cancel' : 'schedule'}
+                  </span>
+                  <div>
+                    <p className="text-sm font-label font-bold text-primary">{event.time}</p>
+                    <p className="text-[10px] text-on-surface-variant">{event.desc}</p>
+                  </div>
                 </div>
+                
+                {/* Validation Actions */}
+                {event.status === 'pending' && (
+                  <div className="flex gap-1">
+                    <button title="Verify" className="w-8 h-8 flex items-center justify-center rounded-full text-[#163428] hover:bg-[#c8ead8] transition-colors">
+                      <span className="material-symbols-outlined text-sm">check</span>
+                    </button>
+                    <button title="Reject" className="w-8 h-8 flex items-center justify-center rounded-full text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+                )}
               </div>
-              <span className="material-symbols-outlined text-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity">play_circle</span>
-            </div>
-            <div className="p-3 bg-surface-container rounded-xl flex items-center justify-between group hover:bg-surface-container-high cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-sm">schedule</span>
-                <div>
-                  <p className="text-sm font-label font-bold text-primary">00:02:45</p>
-                  <p className="text-[10px] text-on-surface-variant">Multiple Overlap</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity">play_circle</span>
-            </div>
-            <div className="p-3 bg-surface-container rounded-xl flex items-center justify-between group hover:bg-surface-container-high cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-sm">schedule</span>
-                <div>
-                  <p className="text-sm font-label font-bold text-primary">00:03:12</p>
-                  <p className="text-[10px] text-on-surface-variant">High Frequency Pulse</p>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity">play_circle</span>
-            </div>
+            ))}
           </div>
 
           <div className="mt-8 pt-6 border-t border-outline-variant/10">
