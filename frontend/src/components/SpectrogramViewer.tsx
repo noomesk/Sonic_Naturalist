@@ -6,9 +6,10 @@ const Plot = (ReactPlotly as any).default || ReactPlotly;
 
 interface SpectrogramViewerProps {
     currentAudioId: string | null;
+    detections?: any[];
 }
 
-export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAudioId }) => {
+export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAudioId, detections = [] }) => {
     const [spectrogramData, setSpectrogramData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -64,24 +65,51 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                     <Plot
                         data={[
                             {
+                                x: spectrogramData.x,
+                                y: spectrogramData.y,
                                 z: spectrogramData.z,
                                 type: 'heatmap',
                                 colorscale: 'Inferno', // Colormap científico clásico
-                                showscale: false, // Ocultamos la barra lateral de color para mantener diseño limpio
-                                hoverinfo: 'none'
+                                colorbar: {
+                                    title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
+                                    tickfont: { color: "#ffffff", family: "Inter" }
+                                },
+                                hovertemplate: 'Tiempo: %{x:.2f} s<br>Frecuencia: %{y:.0f} Hz<br>Amplitud: %{z:.1f} dB<extra></extra>',
                             }
                         ]}
                         layout={{
                             autosize: true,
-                            margin: { t: 0, l: 0, r: 0, b: 0 },
+                            margin: { t: 20, l: 60, r: 10, b: 50 },
                             paper_bgcolor: 'transparent',
                             plot_bgcolor: 'transparent',
-                            xaxis: { visible: false, fixedrange: false },
-                            yaxis: { visible: false, fixedrange: false },
+                            font: { color: '#ffffff', family: "Inter" },
+                            xaxis: { 
+                                title: { text: "Tiempo (Segundos)", font: { size: 12, color: "#a0a0a0" } },
+                                tickfont: { color: "#a0a0a0" },
+                                gridcolor: 'rgba(255,255,255,0.05)',
+                                zeroline: false
+                            },
+                            yaxis: { 
+                                title: { text: "Frecuencia (Hz)", font: { size: 12, color: "#a0a0a0" } },
+                                tickfont: { color: "#a0a0a0" },
+                                gridcolor: 'rgba(255,255,255,0.05)',
+                                zeroline: false
+                            },
+                            shapes: detections.map((det) => ({
+                                type: 'rect',
+                                xref: 'x',
+                                yref: 'paper',
+                                x0: det.startTime,
+                                y0: 0,
+                                x1: det.endTime,
+                                y1: 1,
+                                fillcolor: 'rgba(0, 255, 128, 0.2)',
+                                line: { color: 'rgba(0, 255, 128, 0.8)', width: 2 }
+                            }))
                         }}
                         useResizeHandler={true}
-                        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, opacity: 0.85, mixBlendMode: 'screen' }}
-                        config={{ displayModeBar: false, scrollZoom: true }}
+                        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+                        config={{ displayModeBar: true, scrollZoom: true, responsive: true }}
                     />
                 )}
             </div>

@@ -1,5 +1,10 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from services import audio_service
+from ml.ribbit_wrapper import RIBBITDetector
+from core.config import settings
+
+# Instanciamos el detector en memoria (Singleton para no recargarlo en cada petición)
+detector = RIBBITDetector()
 
 router = APIRouter()
 
@@ -36,4 +41,36 @@ async def process_audio(audio_id: str, background_tasks: BackgroundTasks):
         "taskId": "mock-task-id-1234",
         "status": "queued",
         "message": "Audio processing started in background"
+    }
+
+@router.get("/{audio_id}/spectrogram")
+async def get_spectrogram(audio_id: str):
+    """Devuelve la matriz 2D del espectrograma para ser renderizada en el frontend."""
+    try:
+        # Nota: En un entorno de alto tráfico, esto no se debe esperar de forma síncrona.
+        # Para el MVP, lo esperamos (await) para verlo funcionar de inmediato.
+        data = await audio_service.generate_spectrogram_data(audio_id)
+        return data
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing spectrogram: {str(e)}")
+
+@router.get("/{audio_id}/detect")
+async def run_ai_detection(audio_id: str):
+    """Ejecuta el modelo RIBBIT sobre el audio y devuelve los eventos acústicos."""
+    files = list(settings.STORAGE_DIR.glob(f"{audio_id}.*"))
+    if not files:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+        
+    audio_path = files[0]
+    
+    # En producción esto sería una tarea asíncrona (BackgroundTasks o Celery),
+    # pero para el MVP lo esperamos para ver el resultado inmediatamente.
+    detections = detector.detect_events(str(audio_path), threshold=0.80)
+    
+    return {
+        "audio_id": audio_id,
+        "model": detector.model_name,
+        "detections": detections
     }
