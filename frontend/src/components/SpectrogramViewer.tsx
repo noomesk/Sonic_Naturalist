@@ -18,6 +18,7 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
     const waveformRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [volume, setVolume] = useState(0.8);
 
     useEffect(() => {
         if (!currentAudioId) return;
@@ -69,6 +70,12 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
         };
     }, [currentAudioId]);
 
+    useEffect(() => {
+        if (wavesurferRef.current) {
+            wavesurferRef.current.setVolume(volume);
+        }
+    }, [volume]);
+
     const togglePlay = () => {
         if (wavesurferRef.current) {
             wavesurferRef.current.playPause();
@@ -110,7 +117,9 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 y: spectrogramData.y,
                                 z: spectrogramData.z,
                                 type: 'heatmap',
-                                colorscale: 'Inferno', // Colormap científico clásico
+                                colorscale: 'Jet', // Cambiado a Jet para mostrar azules (bajo), verdes, naranjas y rojos (alto)
+                                zmin: -80, // Límite inferior estándar en dBFS para spectrogramas
+                                zmax: 0,   // Límite superior estándar
                                 colorbar: {
                                     title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
                                     tickfont: { color: "#ffffff", family: "Inter" }
@@ -173,8 +182,21 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                     {/* The WaveSurfer DOM Container */}
                     <div className="flex-1 w-full" ref={waveformRef}></div>
                     
-                    <div className="flex items-center gap-4 text-on-surface-variant opacity-80">
-                        <span className="material-symbols-outlined">volume_up</span>
+                    {/* Controles de Volumen */}
+                    <div className="flex items-center gap-3 text-on-surface-variant opacity-80 pl-4 border-l border-outline-variant/10">
+                        <span className="material-symbols-outlined text-xl">
+                            {volume === 0 ? 'volume_off' : volume < 0.5 ? 'volume_down' : 'volume_up'}
+                        </span>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="1" 
+                            step="0.01" 
+                            value={volume}
+                            onChange={(e) => setVolume(parseFloat(e.target.value))}
+                            className="w-24 h-1.5 bg-outline-variant rounded-lg appearance-none cursor-pointer accent-primary"
+                            style={{ WebkitAppearance: 'slider-horizontal' }}
+                        />
                     </div>
                 </div>
             </div>
