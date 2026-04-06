@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>Sonic Naturalist</title>
+    <!-- Solución al error silencioso de Plotly.js en Vite -->
+    <script>
+      if (typeof global === 'undefined') {
+        window.global = window;
+      }
+      if (typeof process === 'undefined') {
+        window.process = { env: {} };
+      }
+      if (typeof Buffer === 'undefined') {
+        window.Buffer = [];
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
