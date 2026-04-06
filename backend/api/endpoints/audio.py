@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi.responses import FileResponse
 from services import audio_service
 from ml.ribbit_wrapper import RIBBITDetector
 from core.config import settings
@@ -74,3 +75,13 @@ async def run_ai_detection(audio_id: str):
         "model": detector.model_name,
         "detections": detections
     }
+
+@router.get("/{audio_id}/stream")
+async def stream_audio(audio_id: str):
+    """Devuelve el archivo de audio subido para su reproducción en el navegador."""
+    files = list(settings.STORAGE_DIR.glob(f"{audio_id}.*"))
+    if not files:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+        
+    audio_path = files[0]
+    return FileResponse(audio_path)

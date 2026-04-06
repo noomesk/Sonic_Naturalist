@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import ReactPlotly from 'react-plotly.js';
+import WaveSurfer from 'wavesurfer.js';
 
 // Resolve Vite's default export object wrapping for Plotly
 const Plot = (ReactPlotly as any).default || ReactPlotly;
@@ -12,6 +13,11 @@ interface SpectrogramViewerProps {
 export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAudioId, detections = [] }) => {
     const [spectrogramData, setSpectrogramData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Configuración interactiva de Wavesurfer
+    const waveformRef = useRef<HTMLDivElement>(null);
+    const wavesurferRef = useRef<WaveSurfer | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     useEffect(() => {
         if (!currentAudioId) return;
@@ -32,7 +38,42 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
         };
 
         fetchSpectrogram();
+
+        // 2. Instanciar Wavesurfer cuando tengamos el ID del audio
+        if (waveformRef.current) {
+            wavesurferRef.current = WaveSurfer.create({
+                container: waveformRef.current,
+                waveColor: 'rgba(235, 245, 240, 0.4)', // Colors that match the Tailwind scheme
+                progressColor: '#0F8B5A', // Darker green tone for the reproduced audio
+                cursorColor: '#00FA9A', // highlight 
+                barWidth: 2,
+                barGap: 1,
+                barRadius: 2,
+                height: 60,
+                normalize: true,
+            });
+
+            // Enlazamos al nuevo backend stream que acabamos de crear
+            wavesurferRef.current.load(`http://localhost:8000/api/v1/audio/${currentAudioId}/stream`);
+
+            wavesurferRef.current.on('play', () => setIsPlaying(true));
+            wavesurferRef.current.on('pause', () => setIsPlaying(false));
+        }
+
+        // Cleanup the instance on unmount or when ID changes
+        return () => {
+            if (wavesurferRef.current) {
+                wavesurferRef.current.destroy();
+                wavesurferRef.current = null;
+            }
+        };
     }, [currentAudioId]);
+
+    const togglePlay = () => {
+        if (wavesurferRef.current) {
+            wavesurferRef.current.playPause();
+        }
+    };
 
     return (
         <section className="bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_-4px_rgba(22,52,40,0.08)] overflow-hidden mb-8">
@@ -114,9 +155,28 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                 )}
             </div>
 
-            {/* Audio Player Controls Estático (Por ahora) */}
-            <div className="p-8 bg-surface-container-low border-t border-outline-variant/10">
-                <p className="text-xs text-on-surface-variant text-center">Audio Player Controls (Pending integration with wavesurfer.js)</p>
+            {/* Audio Player Controls Interactive con Wavesurfer */}
+            <div className="p-6 bg-surface-container-high border-t border-outline-variant/10">
+                <div className="flex items-center gap-6">
+                    <button 
+                        onClick={togglePlay}
+                        disabled={!currentAudioId}
+                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                            currentAudioId ? 'bg-primary text-on-primary hover:scale-105 shadow-md shadow-primary/20' : 'bg-surface-variant text-on-surface-variant/50 cursor-not-allowed'
+                        }`}
+                    >
+                        <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                            {isPlaying ? 'pause' : 'play_arrow'}
+                        </span>
+                    </button>
+                    
+                    {/* The WaveSurfer DOM Container */}
+                    <div className="flex-1 w-full" ref={waveformRef}></div>
+                    
+                    <div className="flex items-center gap-4 text-on-surface-variant opacity-80">
+                        <span className="material-symbols-outlined">volume_up</span>
+                    </div>
+                </div>
             </div>
         </section>
     );
