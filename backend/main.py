@@ -4,14 +4,19 @@ from contextlib import asynccontextmanager
 
 from core.config import settings
 from api.endpoints import audio
+from db.database import engine
+from db import models
+
+# Crear tablas en caso de que no existan
+models.Base.metadata.create_all(bind=engine)
 
 # Sistema moderno de manejo de ciclo de vida (startup/shutdown)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Levantando Sonic Naturalist API...")
+    print("Levantando Sonic Naturalist API...")
     # Aquí inicializaremos la BD (PostgreSQL) y cargaremos los modelos de IA a memoria RAM en el futuro
     yield
-    print("🛑 Apagando servicios, liberando memoria RAM de modelos...")
+    print("Apagando servicios, liberando memoria RAM de modelos...")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
