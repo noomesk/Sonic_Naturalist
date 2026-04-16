@@ -30,8 +30,14 @@ async def generate_spectrogram_data(audio_id: str):
         
     audio_path = files[0]
     
-    # 1. Cargar audio
-    y, sr = librosa.load(audio_path, duration=30.0, sr=22050)
+    # 1. Cargar audio y validar corrupción/silencio
+    try:
+        y, sr = librosa.load(audio_path, duration=30.0, sr=22050)
+        if np.all(y == 0):
+            raise ValueError("Audio contains only silence")
+    except Exception as e:
+        print(f"Error procesando el audio {audio_id}: {e}")
+        raise ValueError(f"El audio está corrupto o contiene solo silencio: {e}")
     
     # 2. Computar Espectrograma Mel
     # fmax=8000 es ideal para ranas, concentra el análisis visual donde cantan
