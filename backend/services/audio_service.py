@@ -84,7 +84,17 @@ async def generate_spectrogram_data(audio_id: str):
 
     duration = librosa.get_duration(y=y, sr=sr)
         
+    # 6. Datos súper ligeros para Tooltip (Hover) Invisible
+    hover_frames = min(melspec_db.shape[1], 1000)
+    hover_indices = np.linspace(0, melspec_db.shape[1] - 1, hover_frames).astype(int)
+    hover_z = melspec_db[:, hover_indices].tolist()
+    hover_x = times[hover_indices].tolist()
+    hover_y = freqs.tolist()
+
     return {
         "image": img_b64,
-        "duration": duration
+        "duration": duration,
+        "hover_x": hover_x,
+        "hover_y": hover_y,
+        "hover_z": hover_z
     }

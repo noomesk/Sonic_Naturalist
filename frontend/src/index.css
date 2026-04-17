@@ -33,3 +33,11 @@
 .waveform-bar {
   transition: height 0.2s ease;
 }
+
+/* Forzar que las imágenes Base64 de Plotly conserven sus pixeles HD al hacer zoom (evitar que se vea borroso) */
+.js-plotly-plot .plotly image, .js-plotly-plot .plotly .bg-image {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}

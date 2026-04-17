@@ -144,7 +144,19 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                 {spectrogramData && !isLoading && (
                     <Plot
                         onRelayout={handleRelayout}
-                        data={[]} // Sin SVG data, usamos imagen pura
+                        data={[
+                            {
+                                x: spectrogramData.hover_x,
+                                y: spectrogramData.hover_y,
+                                z: spectrogramData.hover_z,
+                                type: 'heatmap',
+                                opacity: 0, // Completamente transparente
+                                hoverinfo: 'text',
+                                hovertemplate: '<br><b>Tiempo:</b> %{x:.2f} s<br><b>Frecuencia:</b> %{y:.0f} Hz<br><b>Amplitud:</b> %{z:.1f} dB<extra></extra>',
+                                // Esconder el colorbar ya que no pinta nada, la referenciamos pero vacia
+                                showscale: false
+                            }
+                        ]}
                         layout={{
                             images: [
                                 {
