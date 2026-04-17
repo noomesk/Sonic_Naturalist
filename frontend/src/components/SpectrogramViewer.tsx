@@ -19,6 +19,8 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
 
+    const [playbackTime, setPlaybackTime] = useState(0);
+
     useEffect(() => {
         if (!currentAudioId) return;
 
@@ -58,6 +60,9 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
 
             wavesurferRef.current.on('play', () => setIsPlaying(true));
             wavesurferRef.current.on('pause', () => setIsPlaying(false));
+            wavesurferRef.current.on('timeupdate', (currentTime) => {
+                setPlaybackTime(currentTime);
+            });
         }
 
         // Cleanup the instance on unmount or when ID changes
@@ -110,7 +115,7 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 y: spectrogramData.y,
                                 z: spectrogramData.z,
                                 type: 'heatmap',
-                                colorscale: 'Inferno', // Colormap científico clásico
+                                colorscale: 'Jet', // Espectáculo de color vibrante (Ciencia)
                                 colorbar: {
                                     title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
                                     tickfont: { color: "#ffffff", family: "Inter" }
@@ -136,17 +141,29 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 gridcolor: 'rgba(255,255,255,0.05)',
                                 zeroline: false
                             },
-                            shapes: detections.map((det) => ({
-                                type: 'rect',
-                                xref: 'x',
-                                yref: 'paper',
-                                x0: det.startTime,
-                                y0: 0,
-                                x1: det.endTime,
-                                y1: 1,
-                                fillcolor: 'rgba(0, 255, 128, 0.2)',
-                                line: { color: 'rgba(0, 255, 128, 0.8)', width: 2 }
-                            }))
+                            shapes: [
+                                ...detections.map((det) => ({
+                                    type: 'rect',
+                                    xref: 'x',
+                                    yref: 'paper',
+                                    x0: det.startTime,
+                                    y0: 0,
+                                    x1: det.endTime,
+                                    y1: 1,
+                                    fillcolor: 'rgba(0, 255, 128, 0.2)',
+                                    line: { color: 'rgba(0, 255, 128, 0.8)', width: 2 }
+                                })),
+                                {
+                                    type: 'line',
+                                    xref: 'x',
+                                    yref: 'paper',
+                                    x0: playbackTime,
+                                    x1: playbackTime,
+                                    y0: 0,
+                                    y1: 1,
+                                    line: { color: 'rgba(0, 250, 154, 0.9)', width: 2, dash: 'solid' }
+                                }
+                            ]
                         }}
                         useResizeHandler={true}
                         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
