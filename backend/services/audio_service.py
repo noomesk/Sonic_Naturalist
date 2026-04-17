@@ -32,8 +32,8 @@ async def generate_spectrogram_data(audio_id: str):
     
     # 1. Cargar audio y validar corrupción/silencio
     try:
-        # Limitamos a 60 segundos (1 minuto) para el prototipo Beta
-        y, sr = librosa.load(audio_path, duration=60.0, sr=22050)
+        # Procesamos la duración completa para HD Base64
+        y, sr = librosa.load(audio_path, duration=None, sr=22050)
         if np.all(y == 0):
             raise ValueError("Audio contains only silence")
     except Exception as e:
@@ -50,17 +50,41 @@ async def generate_spectrogram_data(audio_id: str):
     freqs = librosa.mel_frequencies(n_mels=128, fmin=0.0, fmax=8000)
     
     # 4. Downsampling (Para no congelar el navegador)
-    # Aumentamos los píxeles a 2500 para permitir alta resolución en audios de 4+ mins sin ahogar a Plotly
-    max_frames = 2500
+    max_frames = 2500  # 2500 píxeles de ancho garantizan buena resolución de 4 minutos en PNG
     if melspec_db.shape[1] > max_frames:
         indices = np.linspace(0, melspec_db.shape[1] - 1, max_frames).astype(int)
         melspec_db = melspec_db[:, indices]
-        times = times[indices] # Mapear los tiempos reducidos
+        
+    # 5. Rasterización Lado-Servidor a PNG transparente (Base64)
+    # 5.1 Normalizar dB a rango [0, 1]
+    min_db = np.min(melspec_db)
+    max_db = np.max(melspec_db)
+    if max_db > min_db:
+        norm_spec = (melspec_db - min_db) / (max_db - min_db)
+    else:
+        norm_spec = np.zeros_like(melspec_db)
+
+    # 5.2 Estilizar como Jet Colormap y empaquetar en PIL
+    rgb_img = np.zeros((norm_spec.shape[0], norm_spec.shape[1], 3), dtype=np.uint8)
+    rgb_img[..., 0] = np.clip(1.5 - np.abs(4.0 * norm_spec - 3.0), 0, 1) * 255
+    rgb_img[..., 1] = np.clip(1.5 - np.abs(4.0 * norm_spec - 2.0), 0, 1) * 255
+    rgb_img[..., 2] = np.clip(1.5 - np.abs(4.0 * norm_spec - 1.0), 0, 1) * 255
+    
+    # Invertir verticalmente para coordinar con espectroscopía estándar (origen abajo)
+    rgb_img = rgb_img[::-1, :, :]
+
+    from PIL import Image
+    import io
+    import base64
+
+    img = Image.fromarray(rgb_img, 'RGB')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+
+    duration = librosa.get_duration(y=y, sr=sr)
         
     return {
-        "x": times.tolist(),
-        "y": freqs.tolist(),
-        "z": melspec_db.tolist(),
-        "sr": sr,
-        "duration": librosa.get_duration(y=y, sr=sr)
+        "image": img_b64,
+        "duration": duration
     }

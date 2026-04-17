@@ -144,21 +144,22 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                 {spectrogramData && !isLoading && (
                     <Plot
                         onRelayout={handleRelayout}
-                        data={[
-                            {
-                                x: spectrogramData.x,
-                                y: spectrogramData.y,
-                                z: spectrogramData.z,
-                                type: 'heatmap',
-                                colorscale: 'Jet', // Espectáculo de color vibrante (Ciencia)
-                                colorbar: {
-                                    title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
-                                    tickfont: { color: "#ffffff", family: "Inter" }
-                                },
-                                hovertemplate: 'Tiempo: %{x:.2f} s<br>Frecuencia: %{y:.0f} Hz<br>Amplitud: %{z:.1f} dB<extra></extra>',
-                            }
-                        ]}
+                        data={[]} // Sin SVG data, usamos imagen pura
                         layout={{
+                            images: [
+                                {
+                                    source: `data:image/png;base64,${spectrogramData.image}`,
+                                    xref: "x",
+                                    yref: "y",
+                                    x: 0,
+                                    y: 8000,
+                                    sizex: spectrogramData.duration,
+                                    sizey: 8000,
+                                    sizing: "stretch",
+                                    opacity: 1,
+                                    layer: "below"
+                                }
+                            ],
                             autosize: true,
                             margin: { t: 20, l: 60, r: 10, b: 50 },
                             paper_bgcolor: 'transparent',
@@ -170,13 +171,14 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 gridcolor: 'rgba(255,255,255,0.05)',
                                 zeroline: false,
                                 rangeslider: { visible: true, thickness: 0.1, bgcolor: '#121820' },
-                                ...(zoomRange ? { range: zoomRange } : {})
+                                range: zoomRange ? zoomRange : [0, spectrogramData.duration]
                             },
                             yaxis: { 
                                 title: { text: "Frecuencia (Hz)", font: { size: 12, color: "#a0a0a0" } },
                                 tickfont: { color: "#a0a0a0" },
                                 gridcolor: 'rgba(255,255,255,0.05)',
-                                zeroline: false
+                                zeroline: false,
+                                range: [0, 8000]
                             },
                             shapes: [
                                 ...detections.map((det) => ({
