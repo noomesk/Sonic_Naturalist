@@ -32,7 +32,8 @@ async def generate_spectrogram_data(audio_id: str):
     
     # 1. Cargar audio y validar corrupción/silencio
     try:
-        y, sr = librosa.load(audio_path, duration=30.0, sr=22050)
+        # Limitamos a 60 segundos (1 minuto) para el prototipo Beta
+        y, sr = librosa.load(audio_path, duration=60.0, sr=22050)
         if np.all(y == 0):
             raise ValueError("Audio contains only silence")
     except Exception as e:
@@ -49,7 +50,8 @@ async def generate_spectrogram_data(audio_id: str):
     freqs = librosa.mel_frequencies(n_mels=128, fmin=0.0, fmax=8000)
     
     # 4. Downsampling (Para no congelar el navegador)
-    max_frames = 800
+    # Aumentamos los píxeles a 2500 para permitir alta resolución en audios de 4+ mins sin ahogar a Plotly
+    max_frames = 2500
     if melspec_db.shape[1] > max_frames:
         indices = np.linspace(0, melspec_db.shape[1] - 1, max_frames).astype(int)
         melspec_db = melspec_db[:, indices]
