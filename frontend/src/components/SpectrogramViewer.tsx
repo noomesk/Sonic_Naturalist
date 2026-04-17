@@ -153,8 +153,12 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 opacity: 0, // Completamente transparente
                                 hoverinfo: 'text',
                                 hovertemplate: '<br><b>Tiempo:</b> %{x:.2f} s<br><b>Frecuencia:</b> %{y:.0f} Hz<br><b>Amplitud:</b> %{z:.1f} dB<extra></extra>',
-                                // Esconder el colorbar ya que no pinta nada, la referenciamos pero vacia
-                                showscale: false
+                                colorscale: 'Jet', 
+                                colorbar: {
+                                    title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
+                                    tickfont: { color: "#ffffff", family: "Inter" }
+                                },
+                                showscale: true
                             }
                         ]}
                         layout={{
