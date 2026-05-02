@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactPlotly from 'react-plotly.js';
 import WaveSurfer from 'wavesurfer.js';
+import { AITranscript } from './AITranscript';
 
 // Resolve Vite's default export object wrapping for Plotly
 const Plot = (ReactPlotly as any).default || ReactPlotly;
@@ -250,6 +251,9 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                     </div>
                 </div>
             </div>
+
+            {/* AI Realtime Expert Interpreter */}
+            <AITranscript audioId={currentAudioId} playbackTime={playbackTime} />
         </section>
     );
 };

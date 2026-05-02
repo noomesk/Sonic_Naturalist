@@ -85,3 +85,18 @@ async def stream_audio(audio_id: str):
         
     audio_path = files[0]
     return FileResponse(audio_path)
+
+@router.get("/{audio_id}/interpret")
+async def get_interpretation(audio_id: str):
+    """Genera dinámica y algorítmicamente la interpretación en forma de libreto científico."""
+    files = list(settings.STORAGE_DIR.glob(f"{audio_id}.*"))
+    if not files:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+        
+    audio_path = files[0]
+    # Extraemos detecciones usando el RIBBIT en memoria
+    detections = detector.detect_events(str(audio_path), threshold=0.80)
+    
+    # Pasamos las detecciones al generador de transcripciones
+    transcript = await audio_service.generate_ai_interpretation(audio_id, detections)
+    return {"transcript": transcript}

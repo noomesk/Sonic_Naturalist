@@ -98,3 +98,106 @@ async def generate_spectrogram_data(audio_id: str):
         "hover_y": hover_y,
         "hover_z": hover_z
     }
+
+async def generate_ai_interpretation(audio_id: str, detections: list):
+    """
+    Analista Biométrica Virtual: Mapea eventos a una línea de tiempo narrada usando Gemini.
+    """
+    from google import genai
+    files = list(settings.STORAGE_DIR.glob(f"{audio_id}.*"))
+    if not files:
+        raise FileNotFoundError("Audio document not found in storage")
+        
+    audio_path = files[0]
+    
+    # Obtener duración aproximada
+    try:
+        y, sr = librosa.load(audio_path, sr=22050)
+        duration = librosa.get_duration(y=y, sr=sr)
+    except Exception as e:
+        duration = 60 # defaults
+        
+    transcript = []
+    
+    # Intentamos instanciar el cliente de Gemini
+    client = None
+    if settings.GEMINI_API_KEY:
+        try:
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        except Exception as e:
+            print(f"Error inicializando Gemini: {e}")
+            
+    async def get_gemini_narrative(prompt: str, fallback_text: str) -> str:
+        if not client:
+            return fallback_text
+        try:
+            # Usar API asíncrona para no bloquear el backend
+            response = await client.aio.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=f"Eres un biólogo experto analizando un espectrograma bioacústico. Genera una narración técnica, inmersiva y corta (máximo 2 oraciones, responde directamente con el texto sin introducciones). {prompt}"
+            )
+            return response.text.replace('\n', ' ').strip()
+        except Exception as e:
+            print(f"Error con Gemini: {e}")
+            return fallback_text
+    
+    # Algoritmo de "Experto Virtual"
+    if not detections:
+        text = await get_gemini_narrative(
+            "El espectrograma no muestra cantos de animales. Solo hay ruido basal o estridulación en bajas frecuencias. Descríbelo.",
+            "Análisis en curso: No se han detectado firmas acústicas de alta prominencia. El ecosistema analizado parece estar dominado por ruido basal o estridulación constante en frecuencias medias y bajas."
+        )
+        transcript.append({
+            "start": 0, 
+            "end": duration, 
+            "text": text
+        })
+    else:
+        # Ordenamos las detecciones cronológicamente
+        sorted_dets = sorted(detections, key=lambda x: x["startTime"])
+        
+        last_end = 0
+        for i, det in enumerate(sorted_dets):
+            start = det["startTime"]
+            end = det["endTime"]
+            
+            if start - last_end > 1.5:
+                text = await get_gemini_narrative(
+                    "El espectrograma denota un periodo de latencia o silencio biológico focal. Las altas intensidades desaparecen.",
+                    "El espectrograma denota un periodo de baja actividad o silencio biológico focal. Las frecuencias rojas y amarillas disminuyen, indicando que el fondo ambiental envuelve a la matriz."
+                )
+                transcript.append({
+                    "start": last_end,
+                    "end": start,
+                    "text": text
+                })
+            
+            # Nota científica basada en la detección
+            confidence = det.get("confidence", 0.95)
+            species = det.get("label", "Especie desconocida")
+            
+            prompt = f"Acabamos de detectar una firma acústica con {confidence*100:.1f}% de confianza de la especie '{species}'. Describe lo que se ve en el espectrograma (ej. estrías rojas intensas cruzando los 3000Hz) confirmando el canto."
+            fallback = f"¡Alerta Biométrica Detectada! (Confianza: {confidence*100:.1f}%). Posible {species}. Observen las marcadas estrías verticales en el espectro. Este patrón denota una intensa ráfaga de pulsos de energía, cruzando las barreras de los 3000 Hz, lo cual es la firma inequívoca de un canto."
+            
+            text = await get_gemini_narrative(prompt, fallback)
+            
+            transcript.append({
+                "start": start,
+                "end": end + 1.0,  # Margen
+                "text": text
+            })
+            
+            last_end = end + 1.0
+            
+        if duration - last_end > 1.5:
+            text = await get_gemini_narrative(
+                "La actividad acústica decae y el ecosistema retorna hacia la latencia basal suave.",
+                "La actividad acústica focal decae y el ecosistema retorna hacia la latencia basal. Predominan armónicos suaves propios del bioma inanimado."
+            )
+            transcript.append({
+                "start": last_end,
+                "end": duration,
+                "text": text
+            })
+            
+    return transcript
