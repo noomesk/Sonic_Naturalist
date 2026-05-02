@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from services import audio_service
 from ml.ribbit_wrapper import RIBBITDetector
@@ -10,7 +10,12 @@ detector = RIBBITDetector()
 router = APIRouter()
 
 @router.post("/upload", status_code=201)
-async def upload_audio(file: UploadFile = File(...)):
+async def upload_audio(
+    file: UploadFile = File(...),
+    location: str = Form(""),
+    altitude: str = Form(""),
+    habitat: str = Form("")
+):
     """Sube un archivo de audio (.wav, .mp3, .flac) al servidor."""
     
     # Validación estricta de extensiones
@@ -22,7 +27,8 @@ async def upload_audio(file: UploadFile = File(...)):
         )
     
     try:
-        audio_id = await audio_service.save_upload_file(file)
+        metadata = {"location": location, "altitude": altitude, "habitat": habitat}
+        audio_id = await audio_service.save_upload_file(file, metadata)
         return {
             "audioId": audio_id,
             "filename": file.filename,

@@ -1,5 +1,6 @@
 import uuid
 import aiofiles
+import json
 from pathlib import Path
 from fastapi import UploadFile
 import librosa
@@ -7,8 +8,8 @@ import numpy as np
 
 from core.config import settings
 
-async def save_upload_file(upload_file: UploadFile) -> str:
-    """Guarda el archivo de audio de forma asíncrona."""
+async def save_upload_file(upload_file: UploadFile, metadata: dict = None) -> str:
+    """Guarda el archivo de audio y sus metadatos de forma asíncrona."""
     audio_id = str(uuid.uuid4())
     extension = Path(upload_file.filename).suffix
     file_path = settings.STORAGE_DIR / f"{audio_id}{extension}"
@@ -16,6 +17,11 @@ async def save_upload_file(upload_file: UploadFile) -> str:
     async with aiofiles.open(file_path, 'wb') as out_file:
         while content := await upload_file.read(1024 * 1024):
             await out_file.write(content)
+            
+    if metadata:
+        meta_path = settings.STORAGE_DIR / f"{audio_id}_metadata.json"
+        async with aiofiles.open(meta_path, 'w', encoding='utf-8') as meta_file:
+            await meta_file.write(json.dumps(metadata, ensure_ascii=False))
             
     return audio_id
 
@@ -110,6 +116,18 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
         
     audio_path = files[0]
     
+    # Leer metadatos si existen
+    meta_path = audio_path.parent / f"{audio_id}_metadata.json"
+    metadata_text = ""
+    if meta_path.exists():
+        try:
+            import json
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            metadata_text = f"Contexto de la grabación: Región '{meta.get('location', 'Desconocida')}', Altitud {meta.get('altitude', 'N/A')} msnm, Hábitat '{meta.get('habitat', 'Desconocido')}'. "
+        except:
+            pass
+
     # Obtener duración aproximada
     try:
         y, sr = librosa.load(audio_path, sr=22050)
@@ -132,9 +150,10 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
             return fallback_text
         try:
             # Usar API asíncrona para no bloquear el backend
+            sys_prompt = f"Eres un biólogo experto y profesor enseñando a interpretar espectrogramas bioacústicos. REGLA OBLIGATORIA: Tu respuesta SIEMPRE debe constar de dos partes (máximo 3 oraciones en total): PRIMERO explica qué formas/colores visuales se ven en la gráfica (ej. 'Observamos densas estrías verticales rojas, lo cual indica alta intensidad de energía rápida...'), y SEGUNDO da la interpretación taxonómica/ecológica. {metadata_text}"
             response = await client.aio.models.generate_content(
                 model='gemini-2.5-flash',
-                contents=f"Eres un biólogo experto analizando un espectrograma bioacústico. Genera una narración técnica, inmersiva y corta (máximo 2 oraciones, responde directamente con el texto sin introducciones). {prompt}"
+                contents=f"{sys_prompt}\n\nInstrucción actual: {prompt}"
             )
             return response.text.replace('\n', ' ').strip()
         except Exception as e:
@@ -144,8 +163,8 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
     # Algoritmo de "Experto Virtual"
     if not detections:
         text = await get_gemini_narrative(
-            "El espectrograma no muestra cantos de animales. Solo hay ruido basal o estridulación en bajas frecuencias. Descríbelo.",
-            "Análisis en curso: No se han detectado firmas acústicas de alta prominencia. El ecosistema analizado parece estar dominado por ruido basal o estridulación constante en frecuencias medias y bajas."
+            "El espectrograma no muestra cantos de animales. Solo hay ruido basal o estridulación en bajas frecuencias. Explica esto visualmente (colores amarillos/verdes bajos) y biológicamente.",
+            "Visualmente, el espectrograma carece de firmas rojas de alta intensidad, mostrando únicamente franjas amarillas y verdes en las frecuencias bajas. Esto indica un ecosistema dominado por ruido basal o estridulación constante, sin cantos focales presentes."
         )
         transcript.append({
             "start": 0, 
@@ -163,8 +182,8 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
             
             if start - last_end > 1.5:
                 text = await get_gemini_narrative(
-                    "El espectrograma denota un periodo de latencia o silencio biológico focal. Las altas intensidades desaparecen.",
-                    "El espectrograma denota un periodo de baja actividad o silencio biológico focal. Las frecuencias rojas y amarillas disminuyen, indicando que el fondo ambiental envuelve a la matriz."
+                    "El espectrograma denota un periodo de latencia. Las altas intensidades desaparecen. Explica visualmente qué significa que no haya colores rojos.",
+                    "El gráfico muestra una atenuación de los colores cálidos, dejando un fondo azul oscuro o verde tenue. Esto se traduce biológicamente en un silencio focal donde el ruido ambiental envuelve a la matriz."
                 )
                 transcript.append({
                     "start": last_end,
@@ -176,8 +195,8 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
             confidence = det.get("confidence", 0.95)
             species = det.get("label", "Especie desconocida")
             
-            prompt = f"Acabamos de detectar una firma acústica con {confidence*100:.1f}% de confianza de la especie '{species}'. Describe lo que se ve en el espectrograma (ej. estrías rojas intensas cruzando los 3000Hz) confirmando el canto."
-            fallback = f"¡Alerta Biométrica Detectada! (Confianza: {confidence*100:.1f}%). Posible {species}. Observen las marcadas estrías verticales en el espectro. Este patrón denota una intensa ráfaga de pulsos de energía, cruzando las barreras de los 3000 Hz, lo cual es la firma inequívoca de un canto."
+            prompt = f"Acabamos de detectar una firma acústica con {confidence*100:.1f}% de confianza que corresponde a '{species}'. Explica qué se ve en la gráfica (las estrías) y justifica por qué es esta especie o familia según el contexto geográfico y la forma."
+            fallback = f"Noten las intensas y repetitivas estrías verticales de color rojo brillante cruzando las frecuencias altas; el color rojo denota máxima amplitud y la verticalidad indica ráfagas cortas. Considerando el entorno geográfico, esta firma acústica característica (Confianza: {confidence*100:.1f}%) pertenece muy probablemente a {species}."
             
             text = await get_gemini_narrative(prompt, fallback)
             
@@ -191,8 +210,8 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
             
         if duration - last_end > 1.5:
             text = await get_gemini_narrative(
-                "La actividad acústica decae y el ecosistema retorna hacia la latencia basal suave.",
-                "La actividad acústica focal decae y el ecosistema retorna hacia la latencia basal. Predominan armónicos suaves propios del bioma inanimado."
+                "La actividad acústica decae y el ecosistema retorna hacia la latencia basal suave. Describe la atenuación de los pulsos en el gráfico.",
+                "En el visualizador, las marcadas barras de energía se desvanecen gradualmente hacia tonos azulados de baja intensidad. La actividad acústica focal decae y el ecosistema retorna hacia la latencia basal."
             )
             transcript.append({
                 "start": last_end,

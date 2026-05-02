@@ -16,10 +16,13 @@ function App() {
   const [detections, setDetections] = useState<any[]>([]); 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const handleUpload = async (files: File[]) => {
+  const handleUpload = async (files: File[], metadata: any) => {
     if (files.length === 0) return;
     const formData = new FormData();
     formData.append('file', files[0]);
+    formData.append('location', metadata.location || '');
+    formData.append('altitude', metadata.altitude || '');
+    formData.append('habitat', metadata.habitat || '');
 
     try {
       setIsUploadModalOpen(false);
