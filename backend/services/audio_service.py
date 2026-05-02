@@ -193,10 +193,13 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
             
             # Nota científica basada en la detección
             confidence = det.get("confidence", 0.95)
-            species = det.get("label", "Especie desconocida")
+            candidates = det.get("candidates", ["Especie desconocida"])
+            peak_freq = det.get("peak_freq", 0)
             
-            prompt = f"Acabamos de detectar una firma acústica con {confidence*100:.1f}% de confianza que corresponde a '{species}'. Explica qué se ve en la gráfica (las estrías) y justifica por qué es esta especie o familia según el contexto geográfico y la forma."
-            fallback = f"Noten las intensas y repetitivas estrías verticales de color rojo brillante cruzando las frecuencias altas; el color rojo denota máxima amplitud y la verticalidad indica ráfagas cortas. Considerando el entorno geográfico, esta firma acústica característica (Confianza: {confidence*100:.1f}%) pertenece muy probablemente a {species}."
+            cands_str = ", ".join(candidates)
+            
+            prompt = f"El sistema detectó un pulso. La frecuencia dominante (fundamental) del audio fue medida exactamente en {peak_freq:.0f} Hz. Al cruzar esta frecuencia y los datos de iNaturalist para la región ingresada, los 3 candidatos más probables son: {cands_str} (Confianza: {confidence*100:.1f}%). Explica qué se ve en la gráfica en la banda de los {peak_freq:.0f} Hz (colores/estrías) y menciona que estas 3 especies son las sospechosas principales."
+            fallback = f"En la visualización se aprecian intensos pulsos de energía vertical centrados alrededor de los {peak_freq:.0f} Hz, marcados en colores cálidos. Cruzando esta medición acústica con la biometría regional de iNaturalist, las candidatas más probables (Confianza {confidence*100:.1f}%) son: {cands_str}."
             
             text = await get_gemini_narrative(prompt, fallback)
             
