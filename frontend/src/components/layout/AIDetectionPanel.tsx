@@ -13,7 +13,7 @@ export const AIDetectionPanel: React.FC<AIDetectionPanelProps> = ({ detections, 
           <span className="material-symbols-outlined">auto_awesome</span>
           AI Detections
         </h3>
-        <span className="px-2 py-0.5 bg-primary-fixed text-on-primary-fixed text-[10px] font-label font-bold rounded">RIBBIT v2.1</span>
+        <span className="px-2 py-0.5 bg-primary-fixed text-on-primary-fixed text-[10px] font-label font-bold rounded">RIBBIT v3.0</span>
       </div>
 
       {/* Top Result Card */}
@@ -22,7 +22,9 @@ export const AIDetectionPanel: React.FC<AIDetectionPanelProps> = ({ detections, 
           <div className="flex justify-between items-start mb-4">
             <div>
               <span className="text-[10px] font-label text-on-surface-variant font-bold uppercase tracking-wider">Most Probable</span>
-              <h4 className="font-headline text-lg font-extrabold italic text-primary leading-tight mt-1">{detections[0].label}</h4>
+              <h4 className="font-headline text-lg font-extrabold italic text-primary leading-tight mt-1">
+                {detections[0].candidates ? detections[0].candidates[0] : detections[0].label}
+              </h4>
               <p className="text-[10px] text-on-surface-variant/80 mt-2 leading-snug">AI detection confidence is high for this species pattern.</p>
             </div>
             <div className="w-12 h-12 flex items-center justify-center rounded-full bg-primary-fixed text-on-primary-fixed font-label font-bold text-sm shrink-0">
@@ -36,6 +38,17 @@ export const AIDetectionPanel: React.FC<AIDetectionPanelProps> = ({ detections, 
             </div>
             <span className="text-[10px] font-label font-bold text-primary">CONFIDENCE</span>
           </div>
+          
+          {detections[0].candidates && detections[0].candidates.length > 1 && (
+            <div className="mt-4">
+              <span className="text-[10px] font-label text-on-surface-variant font-bold uppercase tracking-wider">Other Possibilities:</span>
+              <ul className="text-xs text-on-surface-variant italic mt-1 list-disc pl-4">
+                {detections[0].candidates.slice(1).map((cand: string, idx: number) => (
+                  <li key={idx}>{cand}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-surface-container-lowest rounded-xl p-5 mb-6 shadow-sm flex flex-col items-center justify-center min-h-[160px]">
@@ -54,30 +67,42 @@ export const AIDetectionPanel: React.FC<AIDetectionPanelProps> = ({ detections, 
       <h5 className="font-label text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-4">Detection Validation</h5>
       <div className="space-y-3">
         {detections && detections.length > 0 ? detections.map((event) => (
-          <div key={event.id} className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
+          <div key={event.id} className={`p-3 rounded-xl border flex flex-col gap-2 transition-colors ${
             event.status === 'verified' ? 'bg-[#c8ead8]/30 border-[#c8ead8]' : 
             event.status === 'rejected' ? 'bg-[#ffdad6]/30 border-[#ffdad6]' : 
             'bg-surface-container border-transparent hover:bg-surface-container-high'
           }`}>
-            <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-secondary text-sm">
-                {event.status === 'verified' ? 'check_circle' : event.status === 'rejected' ? 'cancel' : 'schedule'}
-              </span>
-              <div>
-                <p className="text-sm font-label font-bold text-primary">{event.startTime.toFixed(2)}s - {event.endTime.toFixed(2)}s</p>
-                <p className="text-[10px] text-on-surface-variant">{event.label} ({Math.round(event.confidence * 100)}%)</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-secondary text-sm">
+                  {event.status === 'verified' ? 'check_circle' : event.status === 'rejected' ? 'cancel' : 'schedule'}
+                </span>
+                <div>
+                  <p className="text-sm font-label font-bold text-primary">{event.startTime.toFixed(2)}s - {event.endTime.toFixed(2)}s</p>
+                  <p className="text-[10px] text-on-surface-variant font-semibold">
+                    {event.candidates ? event.candidates[0] : event.label} ({Math.round(event.confidence * 100)}%)
+                  </p>
+                </div>
               </div>
+              
+              {/* Validation Actions */}
+              {event.status === 'pending' && (
+                <div className="flex gap-1">
+                  <button title="Verify" className="w-8 h-8 flex items-center justify-center rounded-full text-[#163428] hover:bg-[#c8ead8] transition-colors">
+                    <span className="material-symbols-outlined text-sm">check</span>
+                  </button>
+                  <button title="Reject" className="w-8 h-8 flex items-center justify-center rounded-full text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+              )}
             </div>
             
-            {/* Validation Actions */}
-            {event.status === 'pending' && (
-              <div className="flex gap-1">
-                <button title="Verify" className="w-8 h-8 flex items-center justify-center rounded-full text-[#163428] hover:bg-[#c8ead8] transition-colors">
-                  <span className="material-symbols-outlined text-sm">check</span>
-                </button>
-                <button title="Reject" className="w-8 h-8 flex items-center justify-center rounded-full text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors">
-                  <span className="material-symbols-outlined text-sm">close</span>
-                </button>
+            {event.candidates && event.candidates.length > 1 && (
+              <div className="ml-7">
+                <p className="text-[9px] text-on-surface-variant italic">
+                  Also possible: {event.candidates.slice(1).join(', ')}
+                </p>
               </div>
             )}
           </div>
@@ -93,3 +118,4 @@ export const AIDetectionPanel: React.FC<AIDetectionPanelProps> = ({ detections, 
     </aside>
   );
 };
+

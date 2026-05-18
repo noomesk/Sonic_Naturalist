@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     # Rutas de almacenamiento
     STORAGE_DIR: Path = Path("data/audio")
     
+    # Gemini API
+    GEMINI_API_KEY: str | None = None
+    
     # Configuración de Pydantic para leer archivo .env si existe
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

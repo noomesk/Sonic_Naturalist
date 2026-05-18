@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactPlotly from 'react-plotly.js';
 import WaveSurfer from 'wavesurfer.js';
+import { AITranscript } from './AITranscript';
 
 // Resolve Vite's default export object wrapping for Plotly
 const Plot = (ReactPlotly as any).default || ReactPlotly;
@@ -18,6 +19,9 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
     const waveformRef = useRef<HTMLDivElement>(null);
     const wavesurferRef = useRef<WaveSurfer | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    
+    const [playbackTime, setPlaybackTime] = useState(0);
+    const [zoomRange, setZoomRange] = useState<[number, number] | null>(null);
 
     useEffect(() => {
         if (!currentAudioId) return;
@@ -58,6 +62,33 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
 
             wavesurferRef.current.on('play', () => setIsPlaying(true));
             wavesurferRef.current.on('pause', () => setIsPlaying(false));
+            wavesurferRef.current.on('timeupdate', (currentTime) => {
+                setPlaybackTime(currentTime);
+
+                // Option A: Auto-Panning Page-turn logic
+                setZoomRange(prevRange => {
+                    if (!prevRange) return prevRange;
+                    const [start, end] = prevRange;
+                    const windowSize = end - start;
+                    
+                    if (currentTime > end && windowSize > 0) {
+                        const duration = wavesurferRef.current?.getDuration() || end;
+                        // Avoid jumping infinitely past the track end
+                        if (end >= duration - 0.5) return prevRange;
+                        
+                        const newStart = end;
+                        const newEnd = Math.min(newStart + windowSize, duration);
+                        // Jump to next window!
+                        return [newStart, newEnd]; 
+                    } else if (currentTime < start && windowSize > 0) {
+                        // User clicked back in the timeline
+                        const newStart = Math.max(0, currentTime);
+                        const newEnd = newStart + windowSize;
+                        return [newStart, newEnd];
+                    }
+                    return prevRange;
+                });
+            });
         }
 
         // Cleanup the instance on unmount or when ID changes
@@ -68,6 +99,15 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
             }
         };
     }, [currentAudioId]);
+
+    const handleRelayout = (event: any) => {
+        // Capture user's manual zoom to update our React state window
+        if (event['xaxis.range[0]'] !== undefined && event['xaxis.range[1]'] !== undefined) {
+            setZoomRange([event['xaxis.range[0]'], event['xaxis.range[1]']]);
+        } else if (event['xaxis.autorange']) {
+            setZoomRange(null); // Reset to full view if they double click
+        }
+    };
 
     const togglePlay = () => {
         if (wavesurferRef.current) {
@@ -90,7 +130,7 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
             </div>
 
             {/* Spectrogram Canvas con Plotly */}
-            <div className="relative h-[480px] bg-[#0d1117] group flex items-center justify-center">
+            <div className="relative h-[560px] bg-[#0d1117] group flex items-center justify-center">
                 {!currentAudioId && !isLoading && (
                     <p className="text-white/50 font-label tracking-widest text-sm z-10">UPLOAD AUDIO TO START ANALYSIS</p>
                 )}
@@ -104,21 +144,39 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
 
                 {spectrogramData && !isLoading && (
                     <Plot
+                        onRelayout={handleRelayout}
                         data={[
                             {
-                                x: spectrogramData.x,
-                                y: spectrogramData.y,
-                                z: spectrogramData.z,
+                                x: spectrogramData.hover_x,
+                                y: spectrogramData.hover_y,
+                                z: spectrogramData.hover_z,
                                 type: 'heatmap',
-                                colorscale: 'Inferno', // Colormap científico clásico
+                                opacity: 0, // Completamente transparente
+                                hoverinfo: 'text',
+                                hovertemplate: '<br><b>Tiempo:</b> %{x:.2f} s<br><b>Frecuencia:</b> %{y:.0f} Hz<br><b>Amplitud:</b> %{z:.1f} dB<extra></extra>',
+                                colorscale: 'Jet', 
                                 colorbar: {
                                     title: { text: "dB", font: { color: "#ffffff", family: "Inter" } },
                                     tickfont: { color: "#ffffff", family: "Inter" }
                                 },
-                                hovertemplate: 'Tiempo: %{x:.2f} s<br>Frecuencia: %{y:.0f} Hz<br>Amplitud: %{z:.1f} dB<extra></extra>',
+                                showscale: true
                             }
                         ]}
                         layout={{
+                            images: [
+                                {
+                                    source: `data:image/png;base64,${spectrogramData.image}`,
+                                    xref: "x",
+                                    yref: "y",
+                                    x: 0,
+                                    y: 8000,
+                                    sizex: spectrogramData.duration,
+                                    sizey: 8000,
+                                    sizing: "stretch",
+                                    opacity: 1,
+                                    layer: "below"
+                                }
+                            ],
                             autosize: true,
                             margin: { t: 20, l: 60, r: 10, b: 50 },
                             paper_bgcolor: 'transparent',
@@ -128,25 +186,40 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                                 title: { text: "Tiempo (Segundos)", font: { size: 12, color: "#a0a0a0" } },
                                 tickfont: { color: "#a0a0a0" },
                                 gridcolor: 'rgba(255,255,255,0.05)',
-                                zeroline: false
+                                zeroline: false,
+                                rangeslider: { visible: true, thickness: 0.1, bgcolor: '#121820' },
+                                range: zoomRange ? zoomRange : [0, spectrogramData.duration]
                             },
                             yaxis: { 
                                 title: { text: "Frecuencia (Hz)", font: { size: 12, color: "#a0a0a0" } },
                                 tickfont: { color: "#a0a0a0" },
                                 gridcolor: 'rgba(255,255,255,0.05)',
-                                zeroline: false
+                                zeroline: false,
+                                range: [0, 8000]
                             },
-                            shapes: detections.map((det) => ({
-                                type: 'rect',
-                                xref: 'x',
-                                yref: 'paper',
-                                x0: det.startTime,
-                                y0: 0,
-                                x1: det.endTime,
-                                y1: 1,
-                                fillcolor: 'rgba(0, 255, 128, 0.2)',
-                                line: { color: 'rgba(0, 255, 128, 0.8)', width: 2 }
-                            }))
+                            shapes: [
+                                ...detections.map((det) => ({
+                                    type: 'rect',
+                                    xref: 'x',
+                                    yref: 'paper',
+                                    x0: det.startTime,
+                                    y0: 0,
+                                    x1: det.endTime,
+                                    y1: 1,
+                                    fillcolor: 'rgba(0, 255, 128, 0.2)',
+                                    line: { color: 'rgba(0, 255, 128, 0.8)', width: 2 }
+                                })),
+                                {
+                                    type: 'line',
+                                    xref: 'x',
+                                    yref: 'paper',
+                                    x0: playbackTime,
+                                    x1: playbackTime,
+                                    y0: 0,
+                                    y1: 1,
+                                    line: { color: 'rgba(0, 250, 154, 0.9)', width: 2, dash: 'solid' }
+                                }
+                            ]
                         }}
                         useResizeHandler={true}
                         style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
@@ -178,6 +251,9 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({ currentAud
                     </div>
                 </div>
             </div>
+
+            {/* AI Realtime Expert Interpreter */}
+            <AITranscript audioId={currentAudioId} playbackTime={playbackTime} />
         </section>
     );
 };
