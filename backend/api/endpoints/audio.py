@@ -43,7 +43,9 @@ async def upload_audio(
     file: UploadFile = File(...),
     location: str = Form(""),
     altitude: str = Form(""),
-    habitat: str = Form("")
+    habitat: str = Form(""),
+    latitude: str = Form(""),
+    longitude: str = Form(""),
 ):
     """Sube un archivo de audio (.wav, .mp3, .flac) al servidor."""
     
@@ -56,7 +58,10 @@ async def upload_audio(
         )
     
     try:
-        metadata = {"location": location, "altitude": altitude, "habitat": habitat}
+        metadata = {
+            "location": location, "altitude": altitude, "habitat": habitat,
+            "latitude": latitude, "longitude": longitude,
+        }
         audio_id = await audio_service.save_upload_file(file, metadata)
         return {
             "audioId": audio_id,
@@ -104,10 +109,12 @@ async def run_ai_detection(audio_id: str):
     # En producción esto sería una tarea asíncrona (BackgroundTasks o Celery),
     # pero para el MVP lo esperamos para ver el resultado inmediatamente.
     detections = detector.detect_events(str(audio_path), threshold=0.80)
-    
+    species = detector.species_info(str(audio_path))
+
     return {
         "audio_id": audio_id,
         "model": detector.model_name,
+        "species": species,      # candidatas con foto, fuentes y estado del filtro de altitud
         "detections": detections
     }
 

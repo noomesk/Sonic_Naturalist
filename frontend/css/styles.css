@@ -325,6 +325,44 @@ button, input { font: inherit; color: inherit; }
   width: 100%; max-height: 160px; object-fit: cover;
   border-radius: var(--r-sm); margin: 14px 0;
 }
+
+/* Candidatas por ubicación */
+.species-card { padding: 12px; margin-bottom: 24px; }
+.sp-status {
+  font-size: 11px; color: var(--ink-faint); padding: 4px 8px 10px;
+  line-height: 1.4;
+}
+.sp-item {
+  display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center;
+  padding: 10px; border-radius: var(--r-md);
+  border: 1px solid transparent;
+}
+.sp-item + .sp-item { border-top: 1px solid var(--line); border-radius: 0; }
+.sp-item.is-chosen { background: var(--primary-fixed); border-color: var(--primary-2); }
+.sp-photo {
+  width: 56px; height: 56px; border-radius: 10px; object-fit: cover;
+  background: var(--surface-high);
+  display: grid; place-items: center; color: var(--ink-faint);
+}
+.sp-name { font-family: var(--font-head); font-style: italic; font-weight: 700; color: var(--primary); font-size: 14px; line-height: 1.2; }
+.sp-common { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.sp-meta { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.sp-btn {
+  margin-top: 6px; border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  font-family: var(--font-label); font-size: 11px; font-weight: 700;
+  background: var(--surface-high); color: var(--primary);
+}
+.sp-btn:hover { background: #e4e2dd; }
+.sp-btn.on { background: var(--primary); color: #fff; }
+
+/* Seguir narración (opcional) */
+.follow {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font-family: var(--font-label); font-size: 11px; color: rgba(232, 239, 233, .8);
+  margin-left: auto; user-select: none;
+}
+.follow input { accent-color: #00fa9a; }
+.hint { font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
 .top-tag {
   display: block; font-family: var(--font-label); font-size: 10px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);

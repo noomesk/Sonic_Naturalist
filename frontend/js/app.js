@@ -16,6 +16,8 @@ const state = {
   duration: 0,
   detections: [],   // cada una lleva review: "pending" | "confirmed" | "rejected"
   transcript: [],
+  species: null,    // { status, candidates[], latitude, longitude, altitude, geocodedAs }
+  chosen: null,     // especie elegida por el biólogo como ID de la grabación
   loadToken: 0,     // evita que una carga vieja pise a una nueva
 };
 
@@ -74,7 +76,7 @@ $$(".nav-item").forEach((b) => b.addEventListener("click", () => showView(b.data
 
 async function loadAudio(audioId, filename) {
   const token = ++state.loadToken;
-  Object.assign(state, { audioId, filename, duration: 0, detections: [], transcript: [] });
+  Object.assign(state, { audioId, filename, duration: 0, detections: [], transcript: [], species: null, chosen: null });
   sessionStorage.setItem("audioId", audioId);
   sessionStorage.setItem("filename", filename);
 
@@ -108,8 +110,10 @@ async function loadAudio(audioId, filename) {
 
   if (det.status === "fulfilled") {
     state.detections = det.value.detections.map((d) => ({ ...d, review: "pending" }));
+    state.species = det.value.species ?? null;
   } else {
     toast(`Detección: ${det.reason.message}`, true);
+    state.species = { status: "no disponible", candidates: [], latitude: null, longitude: null };
   }
 
   state.transcript = interp.status === "fulfilled" ? interp.value.transcript : [];
@@ -123,27 +127,56 @@ async function loadAudio(audioId, filename) {
 
 // ---------- Detecciones ----------
 
+// Candidatas de la grabación: el biólogo elige el ID entre 3–5 opciones
+function renderSpecies() {
+  const card = $("#speciesCard");
+  const sp = state.species;
+  if (!state.audioId) {
+    card.innerHTML = `<p class="muted center">Sube una grabación con lugar y altitud</p>`;
+    return;
+  }
+  if (!sp) {
+    card.innerHTML = `<p class="muted center">Calculando candidatas…</p>`;
+    return;
+  }
+  const where = sp.latitude != null
+    ? `Coordenadas ${sp.latitude.toFixed(3)}, ${sp.longitude.toFixed(3)}${sp.geocodedAs ? ` · ${esc(sp.geocodedAs)}` : ""}`
+    : "Sin coordenadas: no se pudo ubicar la región";
+  const status = `${where}<br>${esc(sp.status)}`;
+
+  if (!sp.candidates.length) {
+    card.innerHTML = `<p class="sp-status">${status}</p><p class="muted center">Sin candidatas para esta ubicación.</p>`;
+    return;
+  }
+
+  card.innerHTML = `<p class="sp-status">${status}</p>` + sp.candidates.map((c, i) => {
+    const chosen = state.chosen === c.name;
+    const sources = c.sources.join(" + ");
+    return `
+      <div class="sp-item ${chosen ? "is-chosen" : ""}">
+        ${c.photo ? `<img class="sp-photo" src="${esc(c.photo)}" alt="${esc(c.name)}" loading="lazy" />`
+                  : `<div class="sp-photo"><span class="icon">image_not_supported</span></div>`}
+        <div>
+          <div class="sp-name">${esc(c.name)}</div>
+          ${c.commonName ? `<div class="sp-common">${esc(c.commonName)}</div>` : ""}
+          <div class="sp-meta">${c.inatCount ? `${c.inatCount} obs. iNat · ` : ""}${esc(sources)}</div>
+          <button class="sp-btn ${chosen ? "on" : ""}" data-sp="${i}">${chosen ? "✓ ID elegido" : "Elegir como ID"}</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+$("#speciesCard").addEventListener("click", (e) => {
+  const btn = e.target.closest(".sp-btn");
+  if (!btn) return;
+  const cand = state.species.candidates[Number(btn.dataset.sp)];
+  state.chosen = state.chosen === cand.name ? null : cand.name; // segundo clic lo deshace
+  renderSpecies();
+});
+
 function renderDetections() {
   view.setDetections(state.detections);
-
-  const card = $("#topCard");
-  const top = state.detections.reduce((best, d) => (!best || d.confidence > best.confidence ? d : best), null);
-  if (!top) {
-    card.innerHTML = `<p class="muted center">${state.audioId ? "Sin eventos detectados" : "Sin detecciones todavía"}</p>`;
-  } else {
-    const pct = Math.round(top.confidence * 100);
-    const others = top.candidates.slice(1);
-    card.innerHTML = `
-      <span class="top-tag">Más probable</span>
-      <h4 class="top-species">${esc(top.candidates[0] ?? "Especie desconocida")}</h4>
-      <img class="top-img" src="img/rana.jpg" alt="Rana" />
-      <div class="conf-row">
-        <div class="bar"><span style="width:${pct}%"></span></div>
-        <span class="conf-val">${pct}%</span>
-      </div>
-      ${others.length ? `<div class="others">Otras posibilidades:<ul>${others.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
-    `;
-  }
+  renderSpecies();
 
   const list = $("#detList");
   list.innerHTML = state.detections.length
@@ -205,7 +238,13 @@ function updateTranscript(t) {
     el.classList.toggle("is-past", t >= it.end);
     if (active) activeEl = el;
   });
-  if (activeEl) activeEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  // Solo se desplaza el panel del intérprete, nunca la página, y solo si el usuario lo pidió
+  if (activeEl && $("#followToggle").checked) {
+    const box = $("#transcript");
+    const boxRect = box.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    box.scrollTop += (elRect.top - boxRect.top) - boxRect.height / 2 + elRect.height / 2;
+  }
 }
 
 // ---------- Reproductor ----------
@@ -329,6 +368,8 @@ $("#exportBtn").addEventListener("click", () => {
     audioId: state.audioId,
     filename: state.filename,
     duration: state.duration,
+    idElegido: state.chosen,
+    candidatas: state.species?.candidates ?? [],
     detections: state.detections,
     transcript: state.transcript,
   };

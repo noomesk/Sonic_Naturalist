@@ -138,7 +138,7 @@ export class SpectrogramView {
 
       if (!rejected) {
         ctx.fillStyle = confirmed ? "#00fa9a" : "rgba(232, 239, 233, 0.9)";
-        ctx.fillText(`${Math.round(d.confidence * 100)}%`, x0 + 3, Math.max(12, top - 4));
+        ctx.fillText(fmtHz(d.peak_freq), x0 + 3, Math.max(12, top - 4));
       }
     }
 

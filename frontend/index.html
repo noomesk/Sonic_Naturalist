@@ -87,6 +87,9 @@
           <div class="card-head">
             <span class="icon accent">precision_manufacturing</span>
             <h3>Intérprete analista</h3>
+            <label class="follow" title="Si lo activas, el texto se desplaza con el audio (solo dentro del panel)">
+              <input type="checkbox" id="followToggle" /> Seguir narración
+            </label>
           </div>
           <div class="transcript-list" id="transcript">
             <p class="muted">La interpretación aparecerá aquí al cargar una grabación.</p>
@@ -112,14 +115,15 @@
     <aside class="rail">
       <div class="rail-head">
         <h3><span class="icon">auto_awesome</span>Detecciones</h3>
-        <span class="badge">RIBBIT v3.0</span>
+        <span class="badge">iNat · GBIF</span>
       </div>
 
-      <div class="card top-card" id="topCard">
-        <p class="muted center">Sin detecciones todavía</p>
+      <h4 class="section-label">Candidatas por ubicación y altitud</h4>
+      <div class="card species-card" id="speciesCard">
+        <p class="muted center">Sube una grabación con lugar y altitud</p>
       </div>
 
-      <h4 class="section-label">Validación</h4>
+      <h4 class="section-label">Eventos detectados</h4>
       <div class="det-list" id="detList"></div>
     </aside>
   </div>
@@ -135,9 +139,14 @@
       </label>
       <label class="field">Región / País<input name="location" placeholder="Ej. Chocó, Colombia" /></label>
       <div class="field-row">
-        <label class="field">Altitud (m s.n.m.)<input name="altitude" placeholder="Ej. 1200" /></label>
+        <label class="field">Altitud (m s.n.m.)<input name="altitude" placeholder="Ej. 2600" /></label>
         <label class="field">Hábitat<input name="habitat" placeholder="Ej. Bosque de niebla" /></label>
       </div>
+      <div class="field-row">
+        <label class="field">Latitud (opcional)<input name="latitude" placeholder="Ej. 4.6166" /></label>
+        <label class="field">Longitud (opcional)<input name="longitude" placeholder="Ej. -74.3079" /></label>
+      </div>
+      <p class="hint">Con latitud y longitud la búsqueda es exacta. Si no, se usa el nombre de la región.</p>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" id="cancelUpload">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="submitUpload" disabled>Subir y analizar</button>
