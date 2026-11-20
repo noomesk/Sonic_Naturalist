@@ -464,7 +464,7 @@ async function watchFrontend() {
 // ---------- Arranque ----------
 
 await detectMode(); // local (con backend) o demo (sitio estático)
-if (mode.live) watchFrontend();
+if (mode.live && location.hostname === "localhost") watchFrontend();
 showView(sessionStorage.getItem("view") || "espectro");
 
 // Enlace directo: ?audio=<id>. Si no hay selección previa, se abre la primera demo

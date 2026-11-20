@@ -1,4 +1,5 @@
 import json
+import os
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -53,9 +54,14 @@ async def upload_audio(
     allowed_extensions = ('.wav', '.mp3', '.flac')
     if not file.filename.lower().endswith(allowed_extensions):
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file format. Allowed formats are: {allowed_extensions}"
         )
+
+    # Límite de tamaño (importante en la demo pública)
+    max_bytes = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
+    if file.size is not None and file.size > max_bytes:
+        raise HTTPException(status_code=413, detail=f"El archivo supera el límite de {max_bytes // (1024 * 1024)} MB")
     
     try:
         metadata = {
