@@ -1,60 +1,77 @@
 # Sonic Naturalist 🐸🎧
 
-**Sonic Naturalist** is an advanced, AI-powered bioacoustic analysis platform designed to help biologists, ecologists, and citizen scientists visualize, analyze, and interpret amphibian vocalizations in field recordings.
+**Demo en vivo:** https://sonicnaturalist-frontend.vercel.app/
 
-This project was built as a full-stack application demonstrating the integration of traditional digital signal processing (DSP) with modern generative AI and external scientific databases.
+Plataforma de análisis bioacústico para visualizar y acompañar la interpretación de cantos de anuros en grabaciones de campo. Muestra el espectrograma Mel, detecta eventos acústicos y propone especies candidatas cruzando ubicación, altitud y observaciones públicas.
 
----
-
-## 🎯 The Problem
-
-Analyzing hours of field audio recordings to identify specific animal calls (like frogs or birds) is incredibly time-consuming. Traditional bioacoustic software can be intimidating, highly technical, and lacks automated, pedagogical interpretations. 
-
-Furthermore, while AI models can detect *that* an animal made a sound, they often lack the ecological context (e.g., "What species are actually present in this specific region?").
-
-## 💡 The Solution
-
-Sonic Naturalist bridges the gap between raw audio data and actionable scientific insight by providing:
-1.  **Fast, Server-Side Spectrograms:** Uses `librosa` to compute Mel Spectrograms and rasterizes them into optimized PNGs on the backend, preventing the browser from freezing when handling large audio files (up to 4 minutes).
-2.  **Context-Aware AI Detections (RIBBIT v3.0):** An audio analysis pipeline that detects acoustic events, measures their peak frequencies, and cross-references them in real-time with the **iNaturalist API** based on the recording's location to suggest the most biologically probable species candidates.
-3.  **Virtual Biometric Analyst (Powered by Gemini):** Integrates Google's Gemini LLM to act as an expert tutor. It reads the frequency data and metadata to generate pedagogical, natural-language narratives explaining *how* to read the visual patterns in the spectrogram and *what* they mean ecologically.
+> La demo pública usa grabaciones precalculadas. La subida de tus propios audios funciona en la versión local (ver *Ejecutar localmente*).
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## Qué hace
 
-This platform is built with a modern decoupled architecture:
+- **Espectrograma interactivo:** escala Mel de 0 a 8 kHz, cursor con tiempo y frecuencia, y cabezal de reproducción sincronizado con el audio.
+- **Detección de eventos:** onsets y frecuencia dominante calculados con DSP (librosa).
+- **Candidatas de especie:** cruza las observaciones de anuros en iNaturalist (radio de 10 km, grado de investigación) con los registros de GBIF dentro de la banda de altitud de la grabación. Muestra hasta 5 candidatas con foto y el biólogo elige el ID.
+- **Intérprete:** narra qué se ve en el espectrograma y avanza con el audio. Puede usar Gemini si se configura una clave.
+- **Biblioteca:** cuatro grabaciones de demo y, en la versión local, tus propias subidas.
 
-### Frontend
-*   **React + Vite:** For a blazing-fast, component-based user interface.
-*   **TypeScript:** Ensuring type safety and maintainable code.
-*   **Tailwind CSS:** For a highly customized, responsive, and modern "scientific" UI aesthetic (Glassmorphism, dark modes, precise typography).
-*   **Design System:** Custom CSS tokens tailored for a premium data-visualization experience.
-
-### Backend
-*   **FastAPI (Python):** High-performance backend to handle asynchronous audio processing and API routing.
-*   **Librosa & NumPy:** For heavy digital signal processing, onset detection, and Fast Fourier Transforms (FFT).
-*   **Google GenAI SDK (Gemini 2.5 Flash):** For the generation of dynamic educational narratives based on audio data.
-*   **iNaturalist API:** To fetch regional biodiversity data and perform acoustic-to-taxonomic matching.
+**Limitación honesta:** las candidatas salen de la ubicación y la altitud, no del canto. Asociar el canto a una especie requiere una biblioteca de cantos de referencia validados, que está en construcción.
 
 ---
 
-## ⚙️ Development Workflow & Engineering Highlights
+## Stack
 
-As a Full-Stack Developer with a focus on AI and Science integrations, the development of this platform followed a rigorous engineering workflow:
+- **Frontend:** HTML, CSS y JavaScript vanilla (módulos ES, sin build ni frameworks). Visualización con canvas.
+- **Backend:** FastAPI (Python), librosa y numpy para el procesamiento de audio, Pillow para el espectrograma.
+- **Datos externos:** iNaturalist API y GBIF API.
+- **Despliegue:** frontend en Vercel con la demo precalculada (`frontend/demo/`).
 
-1.  **Audio Processing Optimization:** Initially, rendering large arrays of spectrogram data on the client-side caused massive performance bottlenecks. The solution was to move the heavy lifting (FFT computation) to the FastAPI backend, normalize the data, apply a custom colormap, and send a lightweight Base64 PNG to the frontend, accompanied by downsampled metadata for interactive hover tooltips.
-2.  **Algorithmic Cross-Referencing:** Instead of relying solely on a black-box audio classification model, the app uses deterministic DSP (onset detection and dominant frequency extraction) and intersects that physical data with live biological data (iNaturalist regional species occurrences).
-3.  **Prompt Engineering for Pedagogical AI:** The Gemini integration was carefully tuned with system prompts to ensure the LLM strictly correlates visual cues in the UI (e.g., "red vertical striations") with their biological meaning (e.g., "high-energy mating pulses"), serving an educational purpose rather than just acting as a generic chatbot.
+### Estructura
+
+```
+backend/            API FastAPI, procesamiento de audio y candidatas de especie
+  ml/               detección de eventos y consulta de candidatas (iNaturalist + GBIF)
+  scripts/          build_demo.py: precalcula las grabaciones de demo
+frontend/           sitio estático (HTML, CSS, JS) y demo/
+deploy/space/       Dockerfile y README para Hugging Face Spaces (opcional)
+scripts/            prepare_space.py: arma la carpeta de despliegue
+```
 
 ---
 
-## 🚀 Future Roadmap
+## Ejecutar localmente
 
-*   **OpenAcoustics API Integration:** Replacing mock frequency ranges with a crowdsourced database of measured animal vocal ranges.
-*   **Database Persistence:** Integrating PostgreSQL (Supabase) to store user sessions, upload history, and human-verified AI detections for future model fine-tuning.
-*   **Export for Raven Pro:** Enabling researchers to export verified detection bounding boxes in formats compatible with Cornell's Raven Pro software.
+Requisitos: Python 3.12.
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate          # en Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Abre http://localhost:8000. Con el backend activo puedes subir grabaciones, indicando lugar, altitud y, si quieres, latitud y longitud.
+
+Para la clave de Gemini (opcional), crea `backend/.env` con `GEMINI_API_KEY=...`. Ese archivo está en `.gitignore`.
+
+### Regenerar la demo
+
+```bash
+cd backend
+python scripts/build_demo.py <carpeta_con_mp3>
+```
 
 ---
 
-*Designed and developed as a demonstration of Full-Stack Engineering, AI Integration, and Bioacoustic Science.*
+## Roadmap
+
+- Biblioteca de cantos de referencia por especie, para asociar el canto a la candidata.
+- Guardar las validaciones de eventos y del ID elegido.
+- Selector de punto de coordenadas en mapa (ya disponible en la versión local).
+- Exportar a formatos de análisis (por ejemplo, Raven Pro).
+
+---
+
+*Proyecto de portafolio que combina procesamiento de señales, datos de biodiversidad y desarrollo web.*
