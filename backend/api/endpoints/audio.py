@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from services import audio_service
@@ -8,6 +10,33 @@ from core.config import settings
 detector = RIBBITDetector()
 
 router = APIRouter()
+
+AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac')
+
+
+@router.get("/list")
+async def list_audio():
+    """Lista las grabaciones guardadas con sus metadatos (para la biblioteca)."""
+    items = []
+    for path in sorted(settings.STORAGE_DIR.iterdir()):
+        if path.suffix.lower() not in AUDIO_EXTENSIONS:
+            continue
+        meta = {}
+        meta_path = settings.STORAGE_DIR / f"{path.stem}_metadata.json"
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError):
+                meta = {}
+        items.append({
+            "audioId": path.stem,
+            "filename": path.name,
+            "size": path.stat().st_size,
+            "location": meta.get("location", ""),
+            "altitude": meta.get("altitude", ""),
+            "habitat": meta.get("habitat", ""),
+        })
+    return items
 
 @router.post("/upload", status_code=201)
 async def upload_audio(

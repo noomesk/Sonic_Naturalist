@@ -47,3 +47,10 @@ postgres-data/
 redis-data/
 models/
 audio-storage/
+
+# Entorno local y secretos
+.venv/
+__pycache__/
+*.pyc
+backend/.env
+.env

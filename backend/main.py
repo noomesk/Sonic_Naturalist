@@ -1,48 +1,44 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from core.config import settings
 from api.endpoints import audio
-# from db.database import engine
-# from db import models
 
-# Crear tablas en caso de que no existan
-# models.Base.metadata.create_all(bind=engine)
+# El frontend vanilla vive en ../frontend y lo sirve este mismo servidor
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-# Sistema moderno de manejo de ciclo de vida (startup/shutdown)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Levantando Sonic Naturalist API...")
-    # Aquí inicializaremos la BD (PostgreSQL) y cargaremos los modelos de IA a memoria RAM en el futuro
+    print("Levantando Sonic Naturalist...")
     yield
-    print("Apagando servicios, liberando memoria RAM de modelos...")
+    print("Apagando Sonic Naturalist...")
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Plataforma de análisis bioacústico de anurofauna",
-    version="1.0.0",
-    lifespan=lifespan
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Configuración CORS estricta (Esencial para conectar React con FastAPI)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", 
-        "http://localhost:5174", 
-        "http://localhost:5175",
-        "http://localhost:5176",
-        "http://localhost:3000"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Registrar los endpoints
 app.include_router(audio.router, prefix=f"{settings.API_V1_STR}/audio", tags=["Audio"])
 
-@app.get("/")
+
+@app.get("/api/health")
 def health_check():
     return {"status": "online", "service": settings.PROJECT_NAME}
+
+
+@app.get("/api/dev/stamp")
+def dev_stamp():
+    """Marca de tiempo del frontend. El navegador la consulta y recarga al detectar cambios."""
+    files = [p for p in FRONTEND_DIR.rglob("*") if p.is_file()]
+    return {"stamp": max((p.stat().st_mtime for p in files), default=0)}
+
+
+# Debe ir al final: todo lo que no sea /api cae en los archivos del frontend
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
