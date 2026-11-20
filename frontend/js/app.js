@@ -1,4 +1,4 @@
-import { api } from "./api.js";
+import { api, mode, detectMode } from "./api.js";
 import { SpectrogramView, fmtTime, fmtHz } from "./spectro.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -281,8 +281,68 @@ const dropzone = $("#dropzone");
 const fileInput = $("#fileInput");
 const submitBtn = $("#submitUpload");
 
-$("#openUpload").addEventListener("click", () => dialog.showModal());
+$("#openUpload").addEventListener("click", () => {
+  if (!mode.live) {
+    toast("En la demo solo hay grabaciones precargadas. La subida funciona en la versión local.");
+    return;
+  }
+  dialog.showModal();
+});
 $("#cancelUpload").addEventListener("click", () => dialog.close());
+
+// ---------- Selector de punto en mapa (opcional; por defecto se escriben las coordenadas) ----------
+
+let pickMap = null;
+let pickMarker = null;
+const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+
+function loadLeaflet() {
+  if (window.L) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = LEAFLET_JS;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("No se pudo cargar el mapa"));
+    document.head.appendChild(s);
+  });
+}
+
+function setCoords(lat, lng) {
+  const form = $("#uploadForm");
+  form.querySelector("[name=latitude]").value = lat.toFixed(5);
+  form.querySelector("[name=longitude]").value = lng.toFixed(5);
+  if (pickMarker) pickMarker.setLatLng([lat, lng]);
+  else pickMarker = window.L.marker([lat, lng]).addTo(pickMap);
+}
+
+async function toggleMap() {
+  const box = $("#pickMapBox");
+  const show = box.hidden;
+  box.hidden = !show;
+  $("#toggleMap").textContent = show ? "Ocultar mapa" : "Elegir en mapa";
+  if (!show) return;
+
+  try {
+    await loadLeaflet();
+  } catch (err) {
+    toast(err.message, true);
+    return;
+  }
+  if (!pickMap) {
+    pickMap = window.L.map("pickMap").setView([4.6, -74.3], 9);
+    window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap",
+    }).addTo(pickMap);
+    pickMap.on("click", (e) => setCoords(e.latlng.lat, e.latlng.lng));
+  }
+  setTimeout(() => pickMap.invalidateSize(), 50);
+  const lat = parseFloat($("#uploadForm").querySelector("[name=latitude]").value);
+  const lng = parseFloat($("#uploadForm").querySelector("[name=longitude]").value);
+  if (!Number.isNaN(lat) && !Number.isNaN(lng)) pickMap.setView([lat, lng], 13);
+}
+
+$("#toggleMap").addEventListener("click", toggleMap);
 
 function setPendingFile(file) {
   if (!file) return;
@@ -346,10 +406,11 @@ async function loadLibrary() {
   }
   box.innerHTML = libraryItems.map((it, i) => `
     <button class="lib-card" data-i="${i}">
-      <span class="icon">graphic_eq</span>
-      <h4>${esc(it.filename)}</h4>
+      <span class="lib-top"><span class="icon">graphic_eq</span>${it.demo ? '<span class="badge">Demo</span>' : ""}</span>
+      <h4>${esc(it.title || it.filename)}</h4>
+      ${it.label ? `<p class="lib-label">${esc(it.label)}</p>` : ""}
       <p>${esc(it.location || "Sin región")} · ${esc(it.habitat || "Sin hábitat")}</p>
-      <p>${it.altitude ? esc(it.altitude) + " m s.n.m. · " : ""}${(it.size / 1048576).toFixed(1)} MB</p>
+      <p>${it.altitude ? esc(it.altitude) + " m s.n.m." : ""}${it.size ? ` · ${(it.size / 1048576).toFixed(1)} MB` : ""}</p>
     </button>`).join("");
 }
 
@@ -382,7 +443,7 @@ $("#exportBtn").addEventListener("click", () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
-// ---------- Recarga en vivo (desarrollo) ----------
+// ---------- Recarga en vivo (solo desarrollo local) ----------
 // Consulta /api/dev/stamp cada 800 ms; si cambió algún archivo de frontend, recarga la página.
 // Se conserva la vista activa; el audio se vuelve a elegir desde la biblioteca.
 
@@ -402,12 +463,23 @@ async function watchFrontend() {
 
 // ---------- Arranque ----------
 
+await detectMode(); // local (con backend) o demo (sitio estático)
+if (mode.live) watchFrontend();
 showView(sessionStorage.getItem("view") || "espectro");
-watchFrontend();
 
-// Enlace directo: /?audio=<id> abre esa grabación al cargar
+// Enlace directo: ?audio=<id>. Si no hay selección previa, se abre la primera demo
+// para que el espectrograma se vea desde el primer momento.
 const deepLinkId = new URLSearchParams(location.search).get("audio");
+const savedId = sessionStorage.getItem("audioId");
 if (deepLinkId) {
   showView("espectro");
   loadAudio(deepLinkId, deepLinkId);
+} else if (savedId) {
+  loadAudio(savedId, sessionStorage.getItem("filename") || savedId);
+} else {
+  const items = await api.list();
+  if (items.length) {
+    showView("espectro");
+    loadAudio(items[0].audioId, items[0].title || items[0].filename);
+  }
 }

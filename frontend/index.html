@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
   <div class="app">
@@ -146,7 +147,11 @@
         <label class="field">Latitud (opcional)<input name="latitude" placeholder="Ej. 4.6166" /></label>
         <label class="field">Longitud (opcional)<input name="longitude" placeholder="Ej. -74.3079" /></label>
       </div>
-      <p class="hint">Con latitud y longitud la búsqueda es exacta. Si no, se usa el nombre de la región.</p>
+      <div class="map-row">
+        <p class="hint">Escribe las coordenadas o elige el punto en el mapa. Sin coordenadas se usa el nombre de la región.</p>
+        <button type="button" class="btn btn-ghost btn-sm" id="toggleMap">Elegir en mapa</button>
+      </div>
+      <div id="pickMapBox" hidden><div id="pickMap"></div></div>
       <div class="dialog-actions">
         <button type="button" class="btn btn-ghost" id="cancelUpload">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="submitUpload" disabled>Subir y analizar</button>

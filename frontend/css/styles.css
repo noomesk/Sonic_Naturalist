@@ -363,6 +363,17 @@ button, input { font: inherit; color: inherit; }
 }
 .follow input { accent-color: #00fa9a; }
 .hint { font-size: 12px; color: var(--ink-faint); margin-top: -4px; }
+
+/* Selector de mapa */
+.map-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.map-row .hint { margin: 0; flex: 1; }
+.btn-sm { padding: 7px 14px; font-size: 12px; white-space: nowrap; }
+#pickMap { height: 240px; border-radius: var(--r-md); overflow: hidden; }
+
+/* Biblioteca: etiquetas de demo */
+.lib-top { display: flex; justify-content: space-between; align-items: center; }
+.lib-label { font-style: italic; color: var(--primary) !important; font-weight: 600; }
+.lib-card .badge { font-size: 10px; }
 .top-tag {
   display: block; font-family: var(--font-label); font-size: 10px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
