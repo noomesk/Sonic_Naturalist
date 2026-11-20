@@ -1,3 +1,6 @@
+import json
+import os
+
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from services import audio_service
@@ -9,12 +12,41 @@ detector = RIBBITDetector()
 
 router = APIRouter()
 
+AUDIO_EXTENSIONS = ('.wav', '.mp3', '.flac')
+
+
+@router.get("/list")
+async def list_audio():
+    """Lista las grabaciones guardadas con sus metadatos (para la biblioteca)."""
+    items = []
+    for path in sorted(settings.STORAGE_DIR.iterdir()):
+        if path.suffix.lower() not in AUDIO_EXTENSIONS:
+            continue
+        meta = {}
+        meta_path = settings.STORAGE_DIR / f"{path.stem}_metadata.json"
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError):
+                meta = {}
+        items.append({
+            "audioId": path.stem,
+            "filename": path.name,
+            "size": path.stat().st_size,
+            "location": meta.get("location", ""),
+            "altitude": meta.get("altitude", ""),
+            "habitat": meta.get("habitat", ""),
+        })
+    return items
+
 @router.post("/upload", status_code=201)
 async def upload_audio(
     file: UploadFile = File(...),
     location: str = Form(""),
     altitude: str = Form(""),
-    habitat: str = Form("")
+    habitat: str = Form(""),
+    latitude: str = Form(""),
+    longitude: str = Form(""),
 ):
     """Sube un archivo de audio (.wav, .mp3, .flac) al servidor."""
     
@@ -22,12 +54,20 @@ async def upload_audio(
     allowed_extensions = ('.wav', '.mp3', '.flac')
     if not file.filename.lower().endswith(allowed_extensions):
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file format. Allowed formats are: {allowed_extensions}"
         )
+
+    # Límite de tamaño (importante en la demo pública)
+    max_bytes = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
+    if file.size is not None and file.size > max_bytes:
+        raise HTTPException(status_code=413, detail=f"El archivo supera el límite de {max_bytes // (1024 * 1024)} MB")
     
     try:
-        metadata = {"location": location, "altitude": altitude, "habitat": habitat}
+        metadata = {
+            "location": location, "altitude": altitude, "habitat": habitat,
+            "latitude": latitude, "longitude": longitude,
+        }
         audio_id = await audio_service.save_upload_file(file, metadata)
         return {
             "audioId": audio_id,
@@ -75,10 +115,12 @@ async def run_ai_detection(audio_id: str):
     # En producción esto sería una tarea asíncrona (BackgroundTasks o Celery),
     # pero para el MVP lo esperamos para ver el resultado inmediatamente.
     detections = detector.detect_events(str(audio_path), threshold=0.80)
-    
+    species = detector.species_info(str(audio_path))
+
     return {
         "audio_id": audio_id,
         "model": detector.model_name,
+        "species": species,      # candidatas con foto, fuentes y estado del filtro de altitud
         "detections": detections
     }
 

@@ -192,14 +192,13 @@ async def generate_ai_interpretation(audio_id: str, detections: list):
                 })
             
             # Nota científica basada en la detección
-            confidence = det.get("confidence", 0.95)
             candidates = det.get("candidates", ["Especie desconocida"])
             peak_freq = det.get("peak_freq", 0)
-            
-            cands_str = ", ".join(candidates)
-            
-            prompt = f"El sistema detectó un pulso. La frecuencia dominante (fundamental) del audio fue medida exactamente en {peak_freq:.0f} Hz. Al cruzar esta frecuencia y los datos de iNaturalist para la región ingresada, los 3 candidatos más probables son: {cands_str} (Confianza: {confidence*100:.1f}%). Explica qué se ve en la gráfica en la banda de los {peak_freq:.0f} Hz (colores/estrías) y menciona que estas 3 especies son las sospechosas principales."
-            fallback = f"En la visualización se aprecian intensos pulsos de energía vertical centrados alrededor de los {peak_freq:.0f} Hz, marcados en colores cálidos. Cruzando esta medición acústica con la biometría regional de iNaturalist, las candidatas más probables (Confianza {confidence*100:.1f}%) son: {cands_str}."
+
+            cands_str = ", ".join(candidates[:3])
+
+            prompt = f"El sistema detectó un pulso con frecuencia dominante de {peak_freq:.0f} Hz. Las especies probables en esta localidad y altitud (según iNaturalist y GBIF) son: {cands_str}. Explica qué se ve en la gráfica en la banda de los {peak_freq:.0f} Hz (colores/estrías). NO afirmes cuál especie canta: el canto aún no está asociado a una especie; solo indica que el biólogo debe validarlo."
+            fallback = f"En la visualización se aprecian pulsos de energía vertical centrados alrededor de los {peak_freq:.0f} Hz, marcados en colores cálidos. Las especies probables en esta localidad son: {cands_str}. La identificación debe confirmarse con el biólogo."
             
             text = await get_gemini_narrative(prompt, fallback)
             

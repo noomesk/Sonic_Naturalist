@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+aiofiles
+librosa
+numpy
+pillow
+requests
+pydantic-settings
+google-genai
